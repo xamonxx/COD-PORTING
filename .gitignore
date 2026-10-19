@@ -3,6 +3,7 @@
 *.jks
 *.keystore
 *.zip
+dist/
 .gradle/
 .idea/
 .kotlin/
