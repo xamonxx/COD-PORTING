@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vanguard-mobile.invalid/schema/graphics-profile-v1.json",
+  "title": "Vanguard Mobile graphics profile",
+  "type": "object",
+  "required": ["schemaVersion", "renderer", "performance", "targetRefreshHz", "minimumRefreshHz", "renderScale", "dynamicResolution"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "renderer": { "enum": ["VULKAN", "GLES"] },
+    "performance": { "enum": ["QUALITY", "BALANCED", "PERFORMANCE", "ADAPTIVE_120"] },
+    "targetRefreshHz": { "enum": [60, 90, 120, 144] },
+    "minimumRefreshHz": { "enum": [60, 90] },
+    "renderScale": { "type": "number", "minimum": 0.6, "maximum": 1.0 },
+    "dynamicResolution": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

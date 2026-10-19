@@ -1,0 +1,3 @@
+-keep class com.vanguard.mobile.engine.CampaignNative { *; }
+-keep class com.vanguard.mobile.engine.MultiplayerNative { *; }
+-keepattributes SourceFile,LineNumberTable

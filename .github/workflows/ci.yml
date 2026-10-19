@@ -1,0 +1,88 @@
+name: Android CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android toolchain
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager \
+            'platforms;android-36' \
+            'build-tools;36.0.0' \
+            'ndk;28.2.13676358' \
+            'cmake;3.31.6'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: License and proprietary payload gate
+        shell: bash
+        run: |
+          grep -q 'SPDX-License-Identifier: GPL-3.0-only' LICENSE
+          bash scripts/check-proprietary.sh .
+
+      - name: Native formatting check
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+          find app/src/main/cpp -type f \( -name '*.cpp' -o -name '*.h' \) -print0 \
+            | xargs -0 clang-format --dry-run --Werror
+
+      - name: Native contract tests
+        shell: bash
+        run: |
+          cmake -S app/src/main/cpp -B build/native-host -G Ninja
+          cmake --build build/native-host --parallel
+          ctest --test-dir build/native-host --output-on-failure
+
+      - name: Lint, unit tests, and ARM64 debug APK
+        run: ./gradlew --no-daemon lint testDebugUnitTest assembleDebug
+
+      - name: Launcher manifest smoke check
+        shell: bash
+        run: |
+          apk='app/build/outputs/apk/debug/app-debug.apk'
+          apkanalyzer manifest print "$apk" | grep -q 'com.vanguard.mobile.MainActivity'
+          apkanalyzer files list "$apk" | grep -q '^lib/arm64-v8a/libvanguard_sp.so$'
+          apkanalyzer files list "$apk" | grep -q '^lib/arm64-v8a/libvanguard_mp.so$'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vanguard-debug-and-reports
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/reports/
+            app/build/test-results/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vanguard-mobile.invalid/schema/driver-catalog-v1.json",
+  "title": "Vanguard Mobile signed driver catalog",
+  "type": "object",
+  "required": ["schemaVersion", "sequence", "validFromEpochMs", "validUntilEpochMs", "entries", "signatureBase64"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "validFromEpochMs": { "type": "integer", "minimum": 0 },
+    "validUntilEpochMs": { "type": "integer", "minimum": 0 },
+    "entries": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": ["id", "displayName", "family", "minimumApi", "gpuPatterns", "downloadUrl", "sha256", "library_name"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9._-]{1,64}$" },
+          "displayName": { "type": "string", "maxLength": 100 },
+          "family": { "type": "string", "maxLength": 64 },
+          "minimumApi": { "type": "integer", "minimum": 29, "maximum": 100 },
+          "gpuPatterns": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 100 } },
+          "downloadUrl": { "type": "string", "pattern": "^https://" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "library_name": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.so$" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "signatureBase64": { "type": "string", "minLength": 80, "maxLength": 100 }
+  },
+  "additionalProperties": false
+}

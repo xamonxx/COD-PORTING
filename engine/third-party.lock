@@ -1,0 +1,11 @@
+[sdl]
+repository=https://github.com/libsdl-org/SDL.git
+version=3.4.18
+commit=829a65d769d935c4852f8159e964312c0957260a
+license=Zlib
+integration_status=not-vendored-not-integrated
+
+[android-game-sdk]
+repository=https://github.com/android/games-samples.git
+component=frame-pacing-performance-hints-reference
+integration_status=not-vendored-not-integrated

@@ -1,0 +1,4 @@
+repository=https://github.com/SwagSoftware/KisakCOD.git
+commit=8aadf94cc82795d6829ca06052996a5ec79001c3
+license=GPL-3.0
+integration_status=not-vendored-not-integrated

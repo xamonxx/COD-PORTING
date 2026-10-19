@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vanguard-mobile.invalid/schema/control-profile-v1.json",
+  "title": "Vanguard Mobile control profile",
+  "type": "object",
+  "required": ["schemaVersion", "id", "name", "opacity", "controls"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9._-]{1,64}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "opacity": { "type": "number", "minimum": 0.25, "maximum": 1.0 },
+    "controls": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "kind", "x", "y", "size"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9._-]{1,64}$" },
+          "label": { "type": "string", "maxLength": 80 },
+          "kind": { "enum": ["STICK", "AIM_ZONE", "ACTION", "COMBO", "KEY"] },
+          "x": { "type": "number", "minimum": 0, "maximum": 1 },
+          "y": { "type": "number", "minimum": 0, "maximum": 1 },
+          "size": { "type": "number", "minimum": 0.04, "maximum": 0.75 },
+          "visibleWithGamepad": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

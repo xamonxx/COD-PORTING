@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vanguard-mobile.invalid/schema/asset-manifest-v1.json",
+  "title": "Vanguard Mobile asset manifest",
+  "type": "object",
+  "required": ["schemaVersion", "sourceLabel", "importedAtEpochMs", "totalBytes", "fileCount", "hasCampaign", "hasMultiplayer"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "sourceLabel": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "importedAtEpochMs": { "type": "integer", "minimum": 0 },
+    "totalBytes": { "type": "integer", "minimum": 0 },
+    "fileCount": { "type": "integer", "minimum": 0, "maximum": 25000 },
+    "hasCampaign": { "type": "boolean" },
+    "hasMultiplayer": { "type": "boolean" },
+    "missingRequiredFiles": { "type": "array", "items": { "type": "string", "maxLength": 255 }, "maxItems": 128 }
+  },
+  "additionalProperties": false
+}

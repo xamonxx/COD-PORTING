@@ -1,0 +1,14 @@
+*.apk
+*.aab
+*.jks
+*.keystore
+*.zip
+.gradle/
+.idea/
+.kotlin/
+build/
+captures/
+local.properties
+app/build/
+engine/kisakcod/
+app/src/main/assets/game/
