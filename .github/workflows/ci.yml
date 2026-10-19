@@ -33,7 +33,11 @@ jobs:
         run: |
           sdkmanager="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           test -x "$sdkmanager"
+          set +o pipefail
           yes | "$sdkmanager" --licenses >/dev/null
+          license_status=${PIPESTATUS[1]}
+          set -o pipefail
+          test "$license_status" -eq 0
           "$sdkmanager" \
             'platforms;android-36' \
             'build-tools;36.0.0' \
