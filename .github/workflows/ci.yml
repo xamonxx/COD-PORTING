@@ -77,9 +77,11 @@ jobs:
         run: |
           apk='app/build/outputs/apk/debug/app-debug.apk'
           apkanalyzer="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/apkanalyzer"
-          "$apkanalyzer" manifest print "$apk" | grep -q 'com.vanguard.mobile.MainActivity'
-          "$apkanalyzer" files list "$apk" | grep -q '^lib/arm64-v8a/libvanguard_sp.so$'
-          "$apkanalyzer" files list "$apk" | grep -q '^lib/arm64-v8a/libvanguard_mp.so$'
+          manifest=$("$apkanalyzer" manifest print "$apk")
+          files=$("$apkanalyzer" files list "$apk")
+          grep -q 'com.vanguard.mobile.MainActivity' <<<"$manifest"
+          grep -q '^lib/arm64-v8a/libvanguard_sp.so$' <<<"$files"
+          grep -q '^lib/arm64-v8a/libvanguard_mp.so$' <<<"$files"
 
       - uses: actions/upload-artifact@v7
         if: always()

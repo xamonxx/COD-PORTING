@@ -8,9 +8,10 @@ if [[ -z "$apkanalyzer_bin" ]]; then apkanalyzer_bin=apkanalyzer; fi
 apksigner_bin="${APKSIGNER:-${sdk_root:+$sdk_root/build-tools/36.0.0/apksigner}}"
 if [[ -z "$apksigner_bin" ]]; then apksigner_bin=apksigner; fi
 
-"$apkanalyzer_bin" files list "$apk" | grep -q '^lib/arm64-v8a/libvanguard_sp.so$'
-"$apkanalyzer_bin" files list "$apk" | grep -q '^lib/arm64-v8a/libvanguard_mp.so$'
-if "$apkanalyzer_bin" files list "$apk" | grep -E '^lib/(armeabi|armeabi-v7a|x86|x86_64)/'; then
+files=$("$apkanalyzer_bin" files list "$apk")
+grep -q '^lib/arm64-v8a/libvanguard_sp.so$' <<<"$files"
+grep -q '^lib/arm64-v8a/libvanguard_mp.so$' <<<"$files"
+if grep -E '^lib/(armeabi|armeabi-v7a|x86|x86_64)/' <<<"$files"; then
   echo "Unexpected non-arm64 ABI found."
   exit 1
 fi
