@@ -3,7 +3,8 @@ set -euo pipefail
 
 apk="${1:?usage: verify-apk.sh path/to.apk}"
 sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-apkanalyzer_bin="${APKANALYZER:-apkanalyzer}"
+apkanalyzer_bin="${APKANALYZER:-${sdk_root:+$sdk_root/cmdline-tools/latest/bin/apkanalyzer}}"
+if [[ -z "$apkanalyzer_bin" ]]; then apkanalyzer_bin=apkanalyzer; fi
 apksigner_bin="${APKSIGNER:-${sdk_root:+$sdk_root/build-tools/36.0.0/apksigner}}"
 if [[ -z "$apksigner_bin" ]]; then apksigner_bin=apksigner; fi
 
