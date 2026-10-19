@@ -8,8 +8,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,6 +35,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -40,6 +44,23 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.CenterFocusStrong
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Lan
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.TouchApp
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -53,12 +74,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import com.vanguard.mobile.data.AssetRepository
 import com.vanguard.mobile.data.ImportProgress
@@ -66,6 +90,8 @@ import com.vanguard.mobile.data.ImportResult
 import com.vanguard.mobile.data.SettingsRepository
 import com.vanguard.mobile.engine.GameActivity
 import com.vanguard.mobile.model.ControlProfile
+import com.vanguard.mobile.model.ControlKind
+import com.vanguard.mobile.model.TouchControl
 import com.vanguard.mobile.model.EngineMode
 import com.vanguard.mobile.model.GraphicsProfile
 import com.vanguard.mobile.model.LaunchRequest
@@ -77,17 +103,18 @@ import java.io.File
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.math.roundToInt
 
-private enum class Screen(val label: String, val code: String) {
-    HOME("Command", "01"),
-    LIBRARY("Library", "02"),
-    CAMPAIGN("Campaign", "03"),
-    MULTIPLAYER("Network", "04"),
-    CONTROLS("Controls", "05"),
-    GRAPHICS("Performance", "06"),
-    DRIVERS("Drivers", "07"),
-    DIAGNOSTICS("Diagnostics", "08"),
-    ABOUT("About", "09"),
+private enum class Screen(val label: String, val code: String, val icon: ImageVector) {
+    HOME("Command", "01", Icons.Outlined.Home),
+    LIBRARY("Library", "02", Icons.Outlined.FolderOpen),
+    CAMPAIGN("Campaign", "03", Icons.Outlined.Flag),
+    MULTIPLAYER("Network", "04", Icons.Outlined.Lan),
+    CONTROLS("Controls", "05", Icons.Outlined.SportsEsports),
+    GRAPHICS("Performance", "06", Icons.Outlined.Speed),
+    DRIVERS("Drivers", "07", Icons.Outlined.Memory),
+    DIAGNOSTICS("Diagnostics", "08", Icons.Outlined.BugReport),
+    ABOUT("About", "09", Icons.Outlined.Info),
 }
 
 @Composable
@@ -165,9 +192,16 @@ private fun NavigationPanel(selected: Screen, onSelect: (Screen) -> Unit) {
                         .padding(horizontal = 10.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(item.code, color = if (active) VanguardColors.Lime else VanguardColors.Muted, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-                    Spacer(Modifier.width(10.dp))
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = null,
+                        tint = if (active) VanguardColors.Lime else VanguardColors.Muted,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(9.dp))
                     Text(item.label, color = if (active) VanguardColors.Ink else VanguardColors.Muted, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal)
+                    Spacer(Modifier.weight(1f))
+                    Text(item.code, color = if (active) VanguardColors.Lime else VanguardColors.Muted, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
                 }
             }
         }
@@ -202,16 +236,24 @@ private fun HomeScreen(onNavigate: (Screen) -> Unit) {
                 }
                 Spacer(Modifier.width(20.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { onNavigate(Screen.CAMPAIGN) }, enabled = assets?.hasCampaign == true, modifier = Modifier.height(52.dp)) { Text("OPEN CAMPAIGN") }
-                    OutlinedButton(onClick = { onNavigate(Screen.MULTIPLAYER) }, enabled = assets?.hasMultiplayer == true, modifier = Modifier.height(52.dp)) { Text("OPEN NETWORK") }
+                    Button(onClick = { onNavigate(Screen.CAMPAIGN) }, enabled = assets?.hasCampaign == true, modifier = Modifier.height(52.dp)) {
+                        Icon(Icons.Outlined.Flag, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("OPEN CAMPAIGN")
+                    }
+                    OutlinedButton(onClick = { onNavigate(Screen.MULTIPLAYER) }, enabled = assets?.hasMultiplayer == true, modifier = Modifier.height(52.dp)) {
+                        Icon(Icons.Outlined.Lan, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("OPEN NETWORK")
+                    }
                 }
             }
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            ActionCard("IMPORT", "Select a licensed data folder", "No broad storage permission", { onNavigate(Screen.LIBRARY) }, Modifier.weight(1f))
-            ActionCard("TUNE", "Adaptive 120 FPS", "Thermal-aware fallback", { onNavigate(Screen.GRAPHICS) }, Modifier.weight(1f))
-            ActionCard("VERIFY", "Diagnostics & provenance", "No proprietary payloads", { onNavigate(Screen.DIAGNOSTICS) }, Modifier.weight(1f))
+            ActionCard(Icons.Outlined.FolderOpen, "IMPORT", "Select a licensed data folder", "No broad storage permission", { onNavigate(Screen.LIBRARY) }, Modifier.weight(1f))
+            ActionCard(Icons.Outlined.Speed, "TUNE", "Adaptive 120 FPS", "Thermal-aware fallback", { onNavigate(Screen.GRAPHICS) }, Modifier.weight(1f))
+            ActionCard(Icons.Outlined.BugReport, "VERIFY", "Diagnostics & provenance", "No proprietary payloads", { onNavigate(Screen.DIAGNOSTICS) }, Modifier.weight(1f))
         }
     }
 }
@@ -258,6 +300,8 @@ private fun LibraryScreen() {
                 }
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { picker.launch(null) }, enabled = !importing, modifier = Modifier.height(52.dp)) {
+                    Icon(Icons.Outlined.FolderOpen, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
                     Text(if (importing) "IMPORTING…" else "SELECT GAME FOLDER")
                 }
             }
@@ -299,7 +343,11 @@ private fun CampaignScreen() {
                         Text("Mission ${index.toString().padStart(2, '0')}", fontWeight = FontWeight.SemiBold)
                         Text(if (index == 1) "Vertical-slice target" else "Locked until compatibility verification", color = VanguardColors.Muted, fontSize = 12.sp)
                     }
-                    Button(onClick = { launchGame(context, EngineMode.CAMPAIGN, mission = "mission-01") }, enabled = enabled) { Text(if (index == 1) "START" else "LOCKED") }
+                    Button(onClick = { launchGame(context, EngineMode.CAMPAIGN, mission = "mission-01") }, enabled = enabled) {
+                        Icon(if (enabled) Icons.Outlined.Flag else Icons.Outlined.Lock, contentDescription = null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (index == 1) "START" else "LOCKED")
+                    }
                 }
             }
         }
@@ -332,7 +380,11 @@ private fun MultiplayerScreen() {
                         onClick = { launchGame(context, EngineMode.MULTIPLAYER, server = parsed.toString()) },
                         enabled = parsed != null && manifest?.hasMultiplayer == true,
                         modifier = Modifier.height(52.dp),
-                    ) { Text("CONNECT") }
+                    ) {
+                        Icon(Icons.Outlined.Lan, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("CONNECT")
+                    }
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -349,43 +401,196 @@ private fun ControlsScreen() {
     val context = LocalContext.current
     val settings = remember { SettingsRepository(context) }
     var profile by remember { mutableStateOf(settings.controls()) }
+    var selectedId by remember { mutableStateOf(profile.controls.firstOrNull()?.id) }
+    var saved by remember { mutableStateOf(false) }
+    val selected = profile.controls.firstOrNull { it.id == selectedId }
+
+    fun updateControl(updated: TouchControl) {
+        profile = profile.copy(controls = profile.controls.map { if (it.id == updated.id) updated else it })
+        saved = false
+    }
+
     Page("Controls", "Touch editor / gamepad-aware visibility") {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
-            Box(
+            ControlSurface(
+                profile = profile,
+                selectedId = selectedId,
+                onSelect = { selectedId = it },
+                onMove = { id, x, y ->
+                    profile.controls.firstOrNull { it.id == id }?.let {
+                        updateControl(it.copy(x = x.coerceIn(0.06f, 0.94f), y = y.coerceIn(0.08f, 0.92f)))
+                    }
+                },
                 modifier = Modifier
                     .weight(1.5f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF080C0F))
-                    .border(1.dp, VanguardColors.GraphiteSoft, RoundedCornerShape(16.dp)),
-            ) {
-                Canvas(Modifier.fillMaxSize()) {
-                    profile.controls.forEach { control ->
-                        val center = Offset(size.width * control.x, size.height * control.y)
-                        val radius = size.minDimension * control.size * 0.42f
-                        drawCircle(VanguardColors.Lime.copy(alpha = profile.opacity * 0.28f), radius, center)
-                        drawCircle(VanguardColors.Lime.copy(alpha = 0.75f), radius, center, style = Stroke(width = 2.dp.toPx()))
+                    .fillMaxHeight(),
+            )
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("TOUCH PROFILE", color = VanguardColors.Lime, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                        Text("Drag controls on the preview", color = VanguardColors.Muted, fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            profile = profile.copy(controls = ControlProfile.defaultControls())
+                            selectedId = profile.controls.firstOrNull()?.id
+                            saved = false
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                    ) {
+                        Icon(Icons.Outlined.Refresh, contentDescription = null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("RESET")
                     }
                 }
-                Text("LIVE SAFE-AREA PREVIEW", Modifier.padding(16.dp), color = VanguardColors.Muted, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-            }
-            Column(Modifier.weight(1f).fillMaxHeight()) {
-                Text("PROFILE OPACITY", color = VanguardColors.Muted, fontSize = 12.sp)
-                Slider(value = profile.opacity, onValueChange = { profile = profile.copy(opacity = it) }, valueRange = 0.25f..1f)
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(profile.controls) { control ->
-                        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF10161A))) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(control.label, fontWeight = FontWeight.SemiBold)
-                                Text("${control.kind} · size ${(control.size * 100).toInt()}%", color = VanguardColors.Muted, fontSize = 11.sp)
+                        val active = control.id == selectedId
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = if (active) VanguardColors.GraphiteSoft else Color(0xFF10161A)),
+                            modifier = Modifier.fillMaxWidth().clickable { selectedId = control.id },
+                        ) {
+                            Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    Modifier.size(38.dp).clip(CircleShape).background(VanguardColors.Lime.copy(alpha = if (active) 0.22f else 0.10f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(controlIcon(control), contentDescription = null, tint = VanguardColors.Lime, modifier = Modifier.size(21.dp))
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(control.label, fontWeight = FontWeight.SemiBold)
+                                    Text("${control.kind.name.replace('_', ' ')} · ${(control.size * 100).toInt()}%", color = VanguardColors.Muted, fontSize = 10.sp)
+                                }
+                                if (active) Text("EDIT", color = VanguardColors.Lime, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
                             }
                         }
                     }
                 }
-                Button(onClick = { settings.saveControls(profile) }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("SAVE PROFILE") }
+                selected?.let { control ->
+                    SettingsCard("${control.label.uppercase()} SIZE", Modifier.fillMaxWidth()) {
+                        Slider(
+                            value = control.size,
+                            onValueChange = { updateControl(control.copy(size = it)) },
+                            valueRange = if (control.kind == ControlKind.AIM_ZONE) 0.28f..0.62f else 0.08f..0.30f,
+                        )
+                        ToggleRow("Show with gamepad", control.visibleWithGamepad) {
+                            updateControl(control.copy(visibleWithGamepad = it))
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Visibility, contentDescription = null, tint = VanguardColors.Muted, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Slider(
+                        value = profile.opacity,
+                        onValueChange = { profile = profile.copy(opacity = it); saved = false },
+                        valueRange = 0.25f..1f,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("${(profile.opacity * 100).toInt()}%", color = VanguardColors.Muted, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                }
+                Button(
+                    onClick = { settings.saveControls(profile); saved = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    Icon(Icons.Outlined.Save, contentDescription = null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (saved) "PROFILE SAVED" else "SAVE PROFILE")
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ControlSurface(
+    profile: ControlProfile,
+    selectedId: String?,
+    onSelect: (String) -> Unit,
+    onMove: (String, Float, Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF080C0F))
+            .border(1.dp, VanguardColors.GraphiteSoft, RoundedCornerShape(16.dp)),
+    ) {
+        val widthPx = constraints.maxWidth.toFloat()
+        val heightPx = constraints.maxHeight.toFloat()
+        val density = LocalDensity.current
+        Canvas(Modifier.fillMaxSize().padding(22.dp)) {
+            val lineColor = VanguardColors.GraphiteSoft.copy(alpha = 0.72f)
+            drawLine(lineColor, Offset(size.width / 2f, 0f), Offset(size.width / 2f, size.height), 1.dp.toPx())
+            drawLine(lineColor, Offset(0f, size.height / 2f), Offset(size.width, size.height / 2f), 1.dp.toPx())
+        }
+        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("LIVE SAFE-AREA", color = VanguardColors.Muted, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            Spacer(Modifier.weight(1f))
+            Text("DRAG TO POSITION", color = VanguardColors.Lime, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
+        }
+        profile.controls.forEach { control ->
+            val selected = control.id == selectedId
+            val diameter = if (control.kind == ControlKind.AIM_ZONE) 104.dp else (52 + (control.size * 60).roundToInt()).dp
+            val diameterPx = with(density) { diameter.toPx() }
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            (widthPx * control.x - diameterPx / 2f).roundToInt(),
+                            (heightPx * control.y - diameterPx / 2f).roundToInt(),
+                        )
+                    }
+                    .size(diameter)
+                    .clip(CircleShape)
+                    .background(VanguardColors.Lime.copy(alpha = profile.opacity * if (selected) 0.34f else 0.20f))
+                    .border(if (selected) 3.dp else 1.5.dp, if (selected) VanguardColors.LimeStrong else VanguardColors.Lime, CircleShape)
+                    .pointerInput(control.id, control.x, control.y) {
+                        var dragX = control.x
+                        var dragY = control.y
+                        detectDragGestures(
+                            onDragStart = { onSelect(control.id) },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragX += dragAmount.x / widthPx
+                                dragY += dragAmount.y / heightPx
+                                onMove(control.id, dragX, dragY)
+                            },
+                        )
+                    }
+                    .clickable { onSelect(control.id) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = controlIcon(control),
+                        contentDescription = control.label,
+                        tint = VanguardColors.Ink,
+                        modifier = Modifier.size(if (control.kind == ControlKind.AIM_ZONE) 30.dp else 24.dp),
+                    )
+                    if (selected || control.kind == ControlKind.AIM_ZONE) {
+                        Text(control.label.uppercase(), color = VanguardColors.Ink, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun controlIcon(control: TouchControl): ImageVector = when (control.id) {
+    "move" -> Icons.Outlined.SportsEsports
+    "aim" -> Icons.Outlined.TouchApp
+    "fire" -> Icons.Outlined.CenterFocusStrong
+    "jump" -> Icons.Outlined.KeyboardArrowUp
+    "reload" -> Icons.Outlined.Refresh
+    else -> when (control.kind) {
+        ControlKind.STICK -> Icons.Outlined.SportsEsports
+        ControlKind.AIM_ZONE -> Icons.Outlined.TouchApp
+        ControlKind.ACTION -> Icons.Outlined.CenterFocusStrong
+        ControlKind.COMBO -> Icons.Outlined.SportsEsports
+        ControlKind.KEY -> Icons.Outlined.TouchApp
     }
 }
 
@@ -422,7 +627,11 @@ private fun GraphicsScreen() {
         Button(onClick = {
             profile = profile.copy(renderScale = scale, targetRefreshHz = refresh, performance = PerformanceProfile.ADAPTIVE_120)
             settings.saveGraphics(profile)
-        }, modifier = Modifier.height(52.dp)) { Text("SAVE PERFORMANCE PROFILE") }
+        }, modifier = Modifier.height(52.dp)) {
+            Icon(Icons.Outlined.Save, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("SAVE PERFORMANCE PROFILE")
+        }
     }
 }
 
@@ -512,13 +721,21 @@ private fun MetricCard(label: String, value: String, accent: Color, modifier: Mo
 }
 
 @Composable
-private fun ActionCard(code: String, title: String, body: String, action: () -> Unit, modifier: Modifier = Modifier) {
+private fun ActionCard(icon: ImageVector, code: String, title: String, body: String, action: () -> Unit, modifier: Modifier = Modifier) {
     Card(modifier = modifier.clickable(onClick = action), colors = CardDefaults.cardColors(containerColor = Color(0xFF10161A)), shape = RoundedCornerShape(14.dp)) {
-        Column(Modifier.padding(16.dp)) {
-            Text(code, color = VanguardColors.Lime, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-            Spacer(Modifier.height(7.dp))
-            Text(title, fontWeight = FontWeight.Bold)
-            Text(body, color = VanguardColors.Muted, fontSize = 12.sp)
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(VanguardColors.Lime.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = VanguardColors.Lime, modifier = Modifier.size(23.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(code, color = VanguardColors.Lime, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                Text(title, fontWeight = FontWeight.Bold)
+                Text(body, color = VanguardColors.Muted, fontSize = 11.sp)
+            }
         }
     }
 }
